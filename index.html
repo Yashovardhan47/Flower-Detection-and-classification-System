@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌸 Flower Classification System</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,sans-serif;}
+body{height:100vh;overflow:hidden;background:#080c16;color:#fff;}
+
+/* ── Animated background ────────────────────────────────────────────────────── */
+.bg-pipeline{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  display:flex;align-items:center;justify-content:space-around;
+}
+.bg-step{text-align:center;opacity:.6;}
+.bg-step .icon{
+  width:88px;height:88px;border-radius:50%;
+  background:rgba(0,255,200,.06);
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;border:1.5px solid rgba(0,255,208,.4);
+  box-shadow:0 0 20px rgba(0,255,208,.2);
+}
+.bg-step p{font-size:10px;margin-top:6px;color:rgba(0,255,208,.5);letter-spacing:1.2px;text-transform:uppercase;}
+.bg-line{position:fixed;top:50%;left:8%;width:84%;height:1px;background:rgba(0,255,208,.12);z-index:0;}
+.particle{
+  position:fixed;width:6px;height:6px;background:#00ffd0;border-radius:50%;
+  top:calc(50% - 3px);animation:moveP 4s linear infinite;opacity:.6;z-index:0;
+}
+@keyframes moveP{0%{left:8%;opacity:0;}10%{opacity:.6;}90%{opacity:.6;}100%{left:92%;opacity:0;}}
+
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.app{position:relative;z-index:1;display:flex;height:100vh;}
+
+/* LEFT */
+.left{
+  flex:1.35;display:flex;align-items:center;justify-content:center;
+  position:relative;background:rgba(0,0,0,.18);backdrop-filter:blur(6px);
+  border-right:1px solid rgba(0,255,208,.1);
+}
+
+/* RIGHT */
+.right{
+  flex:1;display:flex;flex-direction:column;gap:10px;
+  padding:14px 16px 80px;overflow-y:auto;
+  background:rgba(0,0,0,.18);backdrop-filter:blur(6px);
+}
+.right::-webkit-scrollbar{width:3px;}
+.right::-webkit-scrollbar-thumb{background:rgba(0,255,208,.25);border-radius:3px;}
+
+/* ── Left panel elements ─────────────────────────────────────────────────────── */
+#video{
+  width:85%;border-radius:16px;border:2px solid rgba(0,255,208,.7);
+  display:none;max-height:74vh;object-fit:cover;
+  box-shadow:0 0 30px rgba(0,255,208,.15);
+}
+#uploadPreview{
+  width:85%;border-radius:16px;border:2px solid rgba(0,255,208,.7);
+  display:none;max-height:74vh;object-fit:contain;
+  box-shadow:0 0 30px rgba(0,255,208,.15);
+}
+#snapshot{
+  width:120px;position:absolute;bottom:80px;left:16px;
+  display:none;border-radius:10px;border:2px solid #00ffd0;
+  box-shadow:0 0 14px rgba(0,255,208,.4);
+}
+
+/* Idle placeholder */
+#idlePlaceholder{
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+  opacity:.55;pointer-events:none;
+}
+#idlePlaceholder .big-icon{font-size:72px;filter:drop-shadow(0 0 18px #00ffd0);}
+#idlePlaceholder p{font-size:13px;color:#00ffd0;letter-spacing:1px;text-align:center;line-height:1.7;}
+
+/* Mode badge */
+#modeBadge{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  background:rgba(0,255,208,.1);border:1px solid rgba(0,255,208,.4);
+  border-radius:20px;padding:5px 18px;
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:#00ffd0;display:none;white-space:nowrap;z-index:5;
+}
+
+/* Ready badge */
+#readyBadge{
+  display:none;position:absolute;bottom:80px;right:16px;
+  background:rgba(0,255,208,.12);border:1px solid #00ffd0;
+  border-radius:8px;padding:5px 12px;
+  font-size:10px;color:#00ffd0;letter-spacing:1px;z-index:5;
+}
+
+/* Spinner */
+#spinner{
+  display:none;position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);z-index:20;
+  width:54px;height:54px;
+  border:5px solid rgba(0,255,208,.12);border-top-color:#00ffd0;
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+
+/* ── Voice UI ─────────────────────────────────────────────────────────────────── */
+#voiceUI{display:none;flex-direction:column;align-items:center;gap:14px;width:84%;}
+.mic-btn{
+  width:116px;height:116px;border-radius:50%;
+  background:linear-gradient(135deg,#00ffd0,#00b8a0);
+  display:flex;align-items:center;justify-content:center;
+  font-size:40px;cursor:pointer;border:none;
+  box-shadow:0 0 22px rgba(0,255,208,.4);
+  transition:box-shadow .25s,transform .2s;
+}
+.mic-btn:hover{box-shadow:0 0 34px rgba(0,255,208,.7);transform:scale(1.04);}
+.mic-btn.listening{animation:micPulse 1.1s ease-in-out infinite;}
+@keyframes micPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 22px rgba(0,255,208,.4);}
+  50%{transform:scale(1.14);box-shadow:0 0 42px rgba(0,255,208,.9);}
+}
+
+#voiceBox{
+  width:100%;background:rgba(0,255,208,.04);
+  border:1px solid rgba(0,255,208,.2);border-radius:12px;
+  padding:12px 16px;min-height:72px;
+}
+#voiceStatus{
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:#00ffd0;margin-bottom:6px;
+}
+#voiceTranscript{
+  font-size:15px;line-height:1.5;word-break:break-word;
+  min-height:22px;color:#666;font-style:italic;
+  transition:color .25s;
+}
+#voiceTranscript.confirmed{color:#fff;font-style:normal;}
+
+#voiceHint{
+  font-size:11px;color:rgba(0,255,208,.5);text-align:center;
+  letter-spacing:.4px;padding:6px 14px;
+  border:1px dashed rgba(0,255,208,.22);border-radius:8px;width:100%;
+}
+
+/* ── Translation box ─────────────────────────────────────────────────────────── */
+#translationBox{
+  width:100%;background:rgba(255,217,102,.04);
+  border:1px solid rgba(255,217,102,.25);border-radius:12px;
+  padding:12px 14px;
+}
+.tlabel{
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:#ffd966;margin-bottom:8px;display:block;
+}
+.trow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+#langSelect{
+  flex:1;background:#141e2e;border:1px solid rgba(255,217,102,.35);
+  color:#ffd966;border-radius:7px;padding:7px 9px;
+  font-size:12px;cursor:pointer;outline:none;
+}
+#langSelect option{background:#141e2e;}
+#translateBtn{
+  padding:7px 14px;background:rgba(255,217,102,.1);
+  border:1px solid rgba(255,217,102,.35);color:#ffd966;
+  border-radius:7px;font-size:12px;font-weight:700;
+  cursor:pointer;transition:background .2s;white-space:nowrap;
+}
+#translateBtn:hover:not(:disabled){background:rgba(255,217,102,.22);}
+#translateBtn:disabled{opacity:.3;cursor:not-allowed;}
+#translationResult{
+  font-size:13px;line-height:1.6;color:#ffe680;
+  min-height:18px;word-break:break-word;
+}
+
+/* ── Right panel — info card ─────────────────────────────────────────────────── */
+.card{
+  background:rgba(255,255,255,.045);padding:16px 18px;border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(14px);
+}
+#infoPanel{flex-shrink:0;}
+
+.flower-name{
+  font-size:18px;font-weight:700;color:#fff;margin-bottom:2px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.flower-name .sci{
+  font-size:12px;font-weight:400;color:rgba(0,255,208,.7);
+  font-style:italic;
+}
+#confidence{
+  font-size:12px;color:#00ffd0;font-weight:700;margin:4px 0 2px;
+  display:flex;align-items:center;gap:6px;
+}
+.conf-bar{
+  flex:1;max-width:120px;height:4px;background:rgba(255,255,255,.1);
+  border-radius:4px;overflow:hidden;
+}
+.conf-bar-fill{height:100%;background:#00ffd0;border-radius:4px;transition:width .4s;}
+#statusLine{font-size:12px;color:#666;margin-bottom:10px;}
+
+#details{
+  font-size:13px;color:#bbb;line-height:1.65;
+  max-height:220px;overflow-y:auto;
+  padding-right:4px;margin-bottom:10px;
+}
+#details::-webkit-scrollbar{width:3px;}
+#details::-webkit-scrollbar-thumb{background:rgba(0,255,208,.25);border-radius:3px;}
+
+/* ── Structured flower info sections ─────────────────────────────────────── */
+.info-section{margin-bottom:10px;}
+.info-section:last-child{margin-bottom:0;}
+.info-section-heading{
+  font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:#00ffd0;margin-bottom:4px;padding-bottom:3px;
+  border-bottom:1px solid rgba(0,255,208,.18);
+}
+.info-section-body{font-size:13px;color:rgba(255,255,255,.85);line-height:1.65;}
+
+/* ── Image strip ─────────────────────────────────────────────────────────────── */
+#imageStrip{display:flex;gap:8px;flex-wrap:wrap;}
+#imageStrip img{
+  width:88px;height:66px;object-fit:cover;border-radius:9px;
+  border:2px solid rgba(0,255,208,.5);cursor:pointer;
+  transition:transform .2s,box-shadow .2s,border-color .2s;
+}
+#imageStrip img:hover{
+  transform:scale(1.1);
+  box-shadow:0 0 16px rgba(0,255,208,.6);
+  border-color:#00ffd0;
+}
+
+/* ── Quick facts panel ───────────────────────────────────────────────────────── */
+#factsPanel{display:none;flex-shrink:0;}
+.facts-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.fact-item{
+  background:rgba(0,255,208,.06);border:1px solid rgba(0,255,208,.15);
+  border-radius:9px;padding:8px 12px;
+}
+.fact-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(0,255,208,.6);}
+.fact-value{font-size:13px;color:#fff;margin-top:2px;font-weight:600;}
+
+/* ── History panel ───────────────────────────────────────────────────────────── */
+#historyPanel{
+  display:none;flex-direction:column;gap:10px;
+  background:rgba(255,255,255,.045);border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);padding:14px;flex:1;
+  overflow:hidden;min-height:200px;
+}
+.hist-header{display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.hist-header span{font-weight:700;font-size:14px;}
+.hist-body{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:10px;}
+.hist-section{flex:1;overflow-y:auto;min-height:0;}
+.hist-section h3{
+  font-size:10px;letter-spacing:1.2px;text-transform:uppercase;
+  margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1);
+}
+.hist-section.rec h3{color:#00ffd0;}
+.hist-section.unrec h3{color:#ff4d6d;}
+.hist-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.hist-item{position:relative;width:80px;cursor:pointer;}
+.hist-item img{
+  width:80px;height:60px;object-fit:cover;border-radius:8px;
+  border:2px solid transparent;display:block;transition:transform .2s;
+}
+.hist-item:hover img{transform:scale(1.07);}
+.hist-section.rec   .hist-item img{border-color:rgba(0,255,208,.6);}
+.hist-section.unrec .hist-item img{border-color:rgba(255,77,109,.6);}
+.hist-item .badge{position:absolute;top:3px;right:5px;font-size:11px;}
+.hist-item .lbl{font-size:9px;text-align:center;color:rgba(255,255,255,.55);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hist-item .ts{font-size:8px;text-align:center;color:rgba(255,255,255,.25);}
+.empty-msg{font-size:12px;color:rgba(255,255,255,.28);padding:6px 0;}
+.hist-section::-webkit-scrollbar{width:3px;}
+.hist-section::-webkit-scrollbar-thumb{background:rgba(0,255,208,.2);border-radius:3px;}
+
+/* ── Controls bar ────────────────────────────────────────────────────────────── */
+.controls{
+  position:fixed;bottom:0;left:0;
+  width:calc(100% * 1.35 / 2.35);   /* spans only the left panel */
+  padding:10px 14px;
+  display:flex;flex-wrap:nowrap;gap:6px;align-items:center;justify-content:center;
+  background:rgba(8,12,22,.85);backdrop-filter:blur(10px);
+  border-top:1px solid rgba(0,255,208,.1);z-index:10;
+}
+.btn{
+  padding:8px 12px;border:1px solid rgba(0,255,208,.3);
+  border-radius:8px;background:rgba(30,42,56,.9);color:#00ffd0;
+  font-weight:700;cursor:pointer;font-size:11px;
+  transition:background .18s,transform .12s;white-space:nowrap;
+}
+.btn:hover:not(.locked):not(:disabled){background:#253545;transform:scale(1.05);}
+.btn.locked{opacity:.28;cursor:not-allowed;color:rgba(255,255,255,.3);border-color:rgba(255,255,255,.1);}
+.btn.del{background:rgba(30,18,24,.9);color:#ff4d6d;border-color:rgba(255,77,109,.3);}
+.btn.del:hover:not(.locked){background:rgba(42,21,32,.9);}
+
+#detectBtn{
+  padding:10px 24px;font-size:13px;font-weight:900;letter-spacing:1.8px;
+  text-transform:uppercase;border-radius:10px;color:#060a12;border:none;
+  background:linear-gradient(135deg,#00ffd0 0%,#00b898 100%);
+  box-shadow:0 0 18px rgba(0,255,208,.45);
+  position:relative;overflow:hidden;
+  transition:box-shadow .2s,transform .15s,opacity .2s;
+}
+#detectBtn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.18),transparent);
+  pointer-events:none;
+}
+#detectBtn:hover:not(.disabled){
+  transform:scale(1.08);
+  box-shadow:0 0 32px rgba(0,255,208,.85);
+}
+#detectBtn:active:not(.disabled){transform:scale(.96);}
+#detectBtn.disabled{opacity:.3;cursor:not-allowed;box-shadow:none;transform:none;}
+
+/* History FAB */
+.hist-fab{
+  position:fixed;bottom:14px;right:16px;
+  background:#00ffd0;color:#060a12;
+  padding:10px 14px;border-radius:10px;
+  font-weight:700;font-size:12px;border:none;cursor:pointer;
+  box-shadow:0 0 14px rgba(0,255,208,.45);
+  transition:transform .2s,box-shadow .2s;z-index:11;
+}
+.hist-fab:hover{transform:scale(1.06);box-shadow:0 0 24px rgba(0,255,208,.7);}
+
+/* ── Toast ───────────────────────────────────────────────────────────────────── */
+#toast{
+  position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  background:#1a2a1a;color:#00ffd0;
+  border:1px solid rgba(0,255,208,.4);
+  padding:10px 22px;border-radius:10px;
+  font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+  z-index:9999;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+#toast.err{background:#2a1a1a;color:#ff6b6b;border-color:rgba(255,77,109,.4);}
+#toast.show{opacity:1;}
+
+/* ── Lightbox ────────────────────────────────────────────────────────────────── */
+#lightbox{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.92);z-index:999;
+  align-items:center;justify-content:center;flex-direction:column;gap:14px;
+}
+#lightbox img{max-width:78%;max-height:74vh;border-radius:16px;border:2px solid #00ffd0;box-shadow:0 0 40px rgba(0,255,208,.3);}
+#lightboxLabel{color:rgba(255,255,255,.8);font-size:14px;}
+#lightboxClose{
+  position:absolute;top:18px;right:24px;
+  font-size:30px;cursor:pointer;color:#00ffd0;line-height:1;
+}
+
+#fileInput{display:none;}
+</style>
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="bg-pipeline">
+  <div class="bg-step"><div class="icon">📷</div><p>Capture</p></div>
+  <div class="bg-step"><div class="icon">🧠</div><p>AI Analyse</p></div>
+  <div class="bg-step"><div class="icon">🌿</div><p>Identify</p></div>
+  <div class="bg-step"><div class="icon">📖</div><p>Inform</p></div>
+</div>
+<div class="bg-line"></div>
+<div class="particle"></div>
+<div class="particle" style="animation-delay:1s;"></div>
+<div class="particle" style="animation-delay:2s;"></div>
+<div class="particle" style="animation-delay:3s;"></div>
+
+<div id="toast"></div>
+
+<div class="app">
+  <!-- ════════════════ LEFT ════════════════ -->
+  <div class="left">
+    <div id="modeBadge"></div>
+    <div id="spinner"></div>
+
+    <!-- Idle state -->
+    <div id="idlePlaceholder">
+      <div class="big-icon">🌸</div>
+      <p>Flower Classification System<br>Choose Camera · Voice · Upload</p>
+    </div>
+
+    <video id="video" autoplay playsinline muted></video>
+    <img  id="uploadPreview" alt="Uploaded flower">
+    <img  id="snapshot"      alt="Snapshot">
+
+    <!-- Voice UI -->
+    <div id="voiceUI">
+      <button class="mic-btn" id="micIcon" title="Press to speak" onclick="startListening()">🎤</button>
+
+      <div id="voiceBox">
+        <div id="voiceStatus">Listening…</div>
+        <div id="voiceTranscript">Say a flower name or say "detect"…</div>
+      </div>
+
+      <!-- Translation -->
+      <div id="translationBox">
+        <span class="tlabel">🌐 Translate Result</span>
+        <div class="trow">
+          <select id="langSelect">
+            <option value="">— Select Language —</option>
+            <option value="hi">Hindi (हिन्दी)</option>
+            <option value="te">Telugu (తెలుగు)</option>
+            <option value="ta">Tamil (தமிழ்)</option>
+            <option value="kn">Kannada (ಕನ್ನಡ)</option>
+            <option value="ml">Malayalam (മലയാളം)</option>
+            <option value="mr">Marathi (मराठी)</option>
+            <option value="bn">Bengali (বাংলা)</option>
+            <option value="gu">Gujarati (ગુજરાતી)</option>
+            <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="es">Spanish</option>
+            <option value="ar">Arabic</option>
+            <option value="zh">Chinese (中文)</option>
+            <option value="ja">Japanese (日本語)</option>
+            <option value="ko">Korean (한국어)</option>
+            <option value="pt">Portuguese</option>
+            <option value="ru">Russian</option>
+          </select>
+          <button id="translateBtn" class="btn" onclick="translateResult()" disabled>Translate</button>
+        </div>
+        <div id="translationResult">Detect a flower first, then translate.</div>
+      </div>
+
+      <div id="voiceHint">💡 Press 🎤 MIC (or Space) to speak &nbsp;·&nbsp; Then press DETECT &nbsp;·&nbsp; Say "stop" to exit</div>
+
+      <!-- Mute toggle for voice assistant -->
+      <button id="muteBtn" onclick="toggleMute()" style="
+        background:rgba(0,255,208,.08);border:1px solid rgba(0,255,208,.25);
+        color:#00ffd0;border-radius:8px;padding:6px 16px;font-size:11px;
+        font-weight:700;cursor:pointer;letter-spacing:.5px;width:100%;
+        transition:background .2s;">🔊 Voice Assistant: ON</button>
+    </div>
+
+    <div id="readyBadge">● READY — PRESS DETECT</div>
+  </div>
+
+  <!-- ════════════════ RIGHT ════════════════ -->
+  <div class="right">
+
+    <!-- Info card -->
+    <div id="infoPanel" class="card">
+      <div class="flower-name" id="name">🌸 Flower Classification System</div>
+      <div id="confidence" style="display:none">
+        <span id="confText"></span>
+        <div class="conf-bar"><div class="conf-bar-fill" id="confFill" style="width:0%"></div></div>
+      </div>
+      <div id="statusLine">Idle — choose Camera, Voice, or Upload Photo</div>
+      <div id="details">AI-powered flower identification using YOLO + PlantNet + Wikipedia.</div>
+      <div id="imageStrip"></div>
+    </div>
+
+    <!-- Quick facts (shown after detection) -->
+    <div id="factsPanel" class="card">
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:rgba(0,255,208,.7);margin-bottom:4px;">Quick Facts</div>
+      <div class="facts-grid" id="factsGrid"></div>
+    </div>
+
+    <!-- History panel (swaps in when open) -->
+    <div id="historyPanel">
+      <div class="hist-header">
+        <span>📚 Detection History</span>
+        <button class="btn" onclick="toggleHistory()" style="padding:5px 11px;font-size:11px;">✕ Back</button>
+      </div>
+      <div class="hist-body">
+        <div class="hist-section rec">
+          <h3>✔ Recognised</h3>
+          <div id="recList" class="hist-grid"><p class="empty-msg">No detections yet</p></div>
+        </div>
+        <div class="hist-section unrec">
+          <h3>✕ Not Recognised</h3>
+          <div id="unrecList" class="hist-grid"><p class="empty-msg">No failures yet</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Controls bar (left panel only) -->
+<div class="controls">
+  <button class="btn" id="btnCamera"    onclick="startCamera()">📷 Camera</button>
+  <button class="btn" id="btnStopCam"   onclick="stopCamera()">⏹ Stop</button>
+  <button class="btn" id="btnVoice"     onclick="startVoice()">🎤 Voice</button>
+  <button class="btn" id="btnStopVoice" onclick="stopVoice()">🔇 Stop</button>
+  <button class="btn" id="btnUpload"    onclick="triggerUpload()">📂 Upload</button>
+  <button id="detectBtn" class="disabled" onclick="capture()">🔍 DETECT</button>
+  <button class="btn del" onclick="deleteMedia()">🗑</button>
+</div>
+
+<!-- History FAB -->
+<button class="hist-fab" onclick="toggleHistory()">📜 History</button>
+
+<!-- File input -->
+<input type="file" id="fileInput" accept="image/*" onchange="handleUpload(event)">
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightboxClose" onclick="closeLightbox()">✕</span>
+  <img id="lightboxImg" src="" alt="">
+  <p id="lightboxLabel"></p>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// Config
+// ════════════════════════════════════════════════════════════════════════════
+const API = "http://localhost:8000";
+
+// ════════════════════════════════════════════════════════════════════════════
+// DOM refs
+// ════════════════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const video           = $("video");
+const uploadPreview   = $("uploadPreview");
+const snapshotEl      = $("snapshot");
+const voiceUI         = $("voiceUI");
+const micIcon         = $("micIcon");
+const voiceStatus     = $("voiceStatus");
+const voiceTranscript = $("voiceTranscript");
+const detectBtn       = $("detectBtn");
+const readyBadge      = $("readyBadge");
+const modeBadge       = $("modeBadge");
+const toastEl         = $("toast");
+const translateBtn    = $("translateBtn");
+const langSelect      = $("langSelect");
+const translationResult = $("translationResult");
+const imageStrip      = $("imageStrip");
+const spinner         = $("spinner");
+const idlePlaceholder = $("idlePlaceholder");
+const btnCamera    = $("btnCamera");
+const btnStopCam   = $("btnStopCam");
+const btnVoice     = $("btnVoice");
+const btnStopVoice = $("btnStopVoice");
+const btnUpload    = $("btnUpload");
+
+// ════════════════════════════════════════════════════════════════════════════
+// State
+// ════════════════════════════════════════════════════════════════════════════
+let camStream      = null;
+let recognition    = null;
+let mode           = "idle";   // idle | camera | upload | voice
+let voiceActive    = false;
+let detecting      = false;
+let lastResultText = "";
+
+let recHistory   = [];
+let unrecHistory = [];
+
+// ════════════════════════════════════════════════════════════════════════════
+// Toast
+// ════════════════════════════════════════════════════════════════════════════
+let _toastT;
+function toast(msg, ms = 3000, isErr = false) {
+  toastEl.innerText = msg;
+  toastEl.className = "show" + (isErr ? " err" : "");
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => toastEl.className = "", ms);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Mode helpers
+// ════════════════════════════════════════════════════════════════════════════
+const MODE_LABELS = { camera:"Camera", voice:"Voice", upload:"Upload" };
+const MODE_ICONS  = {
+  idle:   "",
+  camera: "📷  CAMERA  ACTIVE",
+  voice:  "🎤  VOICE  ACTIVE",
+  upload: "📂  UPLOAD  ACTIVE",
+};
+
+function isBusy(req) {
+  if (mode === "idle" || mode === req) return false;
+  toast(`⚠ ${MODE_LABELS[mode]} is active — stop it first.`, 2800, true);
+  return true;
+}
+
+function setMode(m) {
+  mode = m;
+  modeBadge.innerText     = MODE_ICONS[m] || m;
+  modeBadge.style.display = m === "idle" ? "none" : "block";
+
+  const camBusy    = m !== "idle" && m !== "camera";
+  const voiceBusy  = m !== "idle" && m !== "voice";
+  const uploadBusy = m !== "idle" && m !== "upload";
+
+  btnCamera.classList.toggle("locked", camBusy);
+  btnStopCam.classList.toggle("locked", camBusy);
+  btnVoice.classList.toggle("locked", voiceBusy);
+  btnStopVoice.classList.toggle("locked", voiceBusy);
+  btnUpload.classList.toggle("locked", uploadBusy);
+
+  // Show idle placeholder only in idle mode
+  idlePlaceholder.style.display = m === "idle" ? "flex" : "none";
+}
+
+function setReady(on) {
+  detectBtn.classList.toggle("disabled", !on);
+  readyBadge.style.display = on ? "block" : "none";
+}
+
+function setSpinner(on) { spinner.style.display = on ? "block" : "none"; }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Info panel helpers
+// ════════════════════════════════════════════════════════════════════════════
+function resetInfoPanel(title = "🌸 Flower Classification System", detail = "", status = "Idle") {
+  $("name").innerHTML = title;
+  $("details").innerText = detail;
+  $("confidence").style.display = "none";
+  $("statusLine").innerText = status;
+  imageStrip.innerHTML = "";
+  $("factsPanel").style.display = "none";
+  $("factsGrid").innerHTML = "";
+}
+
+function showResult(data) {
+  const rawName  = data.name          || "Unknown";
+  const conf     = data.confidence    || 0;
+  const info     = data.info          || "No information available.";
+  const sections = data.info_sections || {};   // structured sections from backend
+  const images   = Array.isArray(data.images) ? data.images : [];
+  const isGood   = !["Unknown","Error","None","No object detected","Invalid image"].includes(rawName);
+
+  // Parse "Common (Scientific)" for display
+  let commonName = rawName, sciName = "";
+  if (rawName.includes("(") && rawName.endsWith(")")) {
+    commonName = rawName.split("(")[0].trim();
+    sciName    = rawName.match(/\(([^)]+)\)/)?.[1] || "";
+  }
+
+  // ── Flower name ───────────────────────────────────────────────────────────
+  $("name").innerHTML =
+    `🌸 ${commonName}` +
+    (sciName ? ` <span class="sci">(${sciName})</span>` : "");
+
+  // ── Confidence bar ────────────────────────────────────────────────────────
+  if (conf > 0) {
+    $("confidence").style.display = "flex";
+    $("confText").innerText = `AI Confidence: ${conf}%`;
+    $("confFill").style.width = Math.min(conf, 100) + "%";
+  } else {
+    $("confidence").style.display = "none";
+  }
+
+  // ── Status line ───────────────────────────────────────────────────────────
+  $("statusLine").innerText = isGood ? "✔ Recognised" : "✕ Not recognised";
+  $("statusLine").style.color = isGood ? "#00ffd0" : "#ff4d6d";
+
+  // ── Info display: use structured sections if available, else plain text ───
+  const sectionKeys = Object.keys(sections);
+  if (isGood && sectionKeys.length > 0) {
+    // Rich structured display — each section as a labelled block
+    let html = "";
+    for (const [heading, content] of Object.entries(sections)) {
+      if (!content) continue;
+      // Replace newline bullets with proper HTML
+      const formatted = content
+        .replace(/•\s*/g, "")
+        .replace(/\n/g, "<br>");
+      html += `<div class="info-section">
+        <div class="info-section-heading">${heading}</div>
+        <div class="info-section-body">${formatted}</div>
+      </div>`;
+    }
+    $("details").innerHTML = html;
+  } else {
+    // Fallback: plain text (already filtered for flower content)
+    $("details").innerText = info;
+  }
+
+  // ── Image strip (flower photos from Unsplash) ─────────────────────────────
+  imageStrip.innerHTML = "";
+  images.forEach(url => {
+    const img   = document.createElement("img");
+    img.src     = url;
+    img.alt     = rawName;
+    img.title   = commonName;
+    img.onerror = () => { img.style.display = "none"; };
+    img.onclick = () => openLightbox(url, commonName + (sciName ? ` (${sciName})` : ""));
+    imageStrip.appendChild(img);
+  });
+
+  // ── Quick facts card ──────────────────────────────────────────────────────
+  if (isGood && info.length > 80) {
+    buildFacts(commonName, sciName, conf, info);
+  } else {
+    $("factsPanel").style.display = "none";
+  }
+
+  // ── Translation setup ─────────────────────────────────────────────────────
+  lastResultText = rawName + (conf > 0 ? `. Confidence: ${conf}%.` : "");
+  if (info && info !== "No info found" && info !== "No information available.") {
+    lastResultText += " " + info.split(".").slice(0, 2).join(".") + ".";
+  }
+  translateBtn.disabled = false;
+  translationResult.innerText = "Select a language and press Translate.";
+
+  // ── Browser voice — speak the result aloud ────────────────────────────────
+  speakResult(data);
+}
+
+function buildFacts(common, sci, conf, info) {
+  const facts = [];
+  if (common) facts.push({ label: "Common Name",    value: common });
+  if (sci)    facts.push({ label: "Scientific Name", value: sci });
+  if (conf > 0) facts.push({ label: "AI Confidence", value: conf + "%" });
+
+  // Extract plant family — Wikipedia uses several formats
+  const familyPatterns = [
+    /\bin the family\s+([\w]+aceae|[\w]+ae)\b/i,
+    /\bfamily\s+([\w]+aceae|[\w]+ae)\b/i,
+    /\b([\w]+aceae)\b/,
+  ];
+  for (const re of familyPatterns) {
+    const m = info.match(re);
+    if (m) { facts.push({ label: "Family", value: m[1] }); break; }
+  }
+
+  // Native region
+  const nativeM = info.match(/native to ([^.,;(]+)/i);
+  if (nativeM) facts.push({ label: "Native To", value: nativeM[1].trim() });
+
+  // Colours mentioned
+  const colourM = info.match(/\b(red|pink|white|yellow|purple|blue|orange|violet|magenta|crimson|lavender)\b/i);
+  if (colourM) facts.push({ label: "Colour", value: colourM[1].charAt(0).toUpperCase() + colourM[1].slice(1) });
+
+  // Genus
+  const genusM = info.match(/genus\s+([A-Z][a-z]+)/);
+  if (genusM) facts.push({ label: "Genus", value: genusM[1] });
+
+  if (facts.length < 2) { $("factsPanel").style.display = "none"; return; }
+
+  $("factsGrid").innerHTML = facts.slice(0, 6).map(f =>
+    `<div class="fact-item">
+      <div class="fact-label">${f.label}</div>
+      <div class="fact-value">${f.value}</div>
+    </div>`
+  ).join("");
+  $("factsPanel").style.display = "block";
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Camera
+// ════════════════════════════════════════════════════════════════════════════
+async function startCamera() {
+  if (isBusy("camera") || mode === "camera") return;
+  _stopCamStream();   // clean up any leftover stream
+  setMode("camera");
+  video.style.display         = "block";
+  voiceUI.style.display       = "none";
+  uploadPreview.style.display = "none";
+  snapshotEl.style.display    = "none";
+
+  try {
+    camStream       = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    video.srcObject = camStream;
+  } catch {
+    try {
+      camStream       = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      video.srcObject = camStream;
+    } catch {
+      toast("❌ Camera permission denied.", 3000, true);
+      setMode("idle"); return;
+    }
+  }
+
+  resetInfoPanel("🌸 Camera Active", "Point the camera at a flower and press DETECT.", "Camera ready");
+  setReady(true);
+}
+
+function stopCamera(silent = false) {
+  if (mode !== "camera") {
+    if (!silent) toast("Camera is not active.", 2000, true);
+    return;
+  }
+  _stopCamStream();
+  snapshotEl.style.display = "none";
+  setMode("idle");
+  resetInfoPanel();
+  setReady(false);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Detect dispatcher
+// ════════════════════════════════════════════════════════════════════════════
+function capture() {
+  if (detectBtn.classList.contains("disabled") || detecting) return;
+  if (mode === "voice") {
+    // Only use transcript if the user confirmed speech (class="confirmed")
+    const isConfirmed = voiceTranscript.classList.contains("confirmed");
+    const t = isConfirmed ? voiceTranscript.innerText.trim() : "";
+    callVoiceAPI(t);
+    return;
+  }
+  if (mode === "upload") { detectUpload(); return; }
+  if (mode === "camera") { detectCamera(); return; }
+}
+
+function detectCamera() {
+  const cvs = document.createElement("canvas");
+  cvs.width  = video.videoWidth  || 640;
+  cvs.height = video.videoHeight || 480;
+  cvs.getContext("2d").drawImage(video, 0, 0);
+  const dataUrl = cvs.toDataURL("image/jpeg", 0.93);
+  snapshotEl.src = dataUrl;
+  snapshotEl.style.display = "block";
+  _detectDataURL(dataUrl);
+}
+
+function detectUpload() {
+  if (!uploadPreview.src || uploadPreview.style.display === "none") return;
+  _detectDataURL(uploadPreview.src);
+}
+
+function _detectDataURL(dataURL) {
+  fetch(dataURL)
+    .then(r => r.blob())
+    .then(b => _sendToBackend(b))
+    .catch(() => {
+      const arr  = dataURL.split(",");
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      const u8   = new Uint8Array(bstr.length);
+      for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+      _sendToBackend(new Blob([u8], { type: mime }));
+    });
+}
+
+function _sendToBackend(blob) {
+  detecting = true;
+  setReady(false);
+  setSpinner(true);
+  detectBtn.innerText = "⏳ Analysing…";
+  $("statusLine").innerText = "Analysing image…";
+  $("statusLine").style.color = "#888";
+  $("confidence").style.display = "none";
+  imageStrip.innerHTML = "";
+  $("factsPanel").style.display = "none";
+
+  const fd = new FormData();
+  fd.append("file", blob, "capture.jpg");
+
+  fetch(`${API}/detect`, { method: "POST", body: fd })
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      showResult(data);
+      _addHistory(data, blob);
+    })
+    .catch(err => {
+      console.error("Detect error:", err);
+      toast("❌ Backend unreachable — run: uvicorn backend:app --host 0.0.0.0 --port 8000", 5000, true);
+      $("statusLine").innerText = "❌ Backend unreachable";
+      $("statusLine").style.color = "#ff4d6d";
+    })
+    .finally(() => {
+      detecting = false;
+      detectBtn.innerText = "🔍 DETECT";
+      setSpinner(false);
+      if (mode === "camera" || mode === "upload") setReady(true);
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// History
+// ════════════════════════════════════════════════════════════════════════════
+function _addHistory(data, blobOrURL) {
+  const time  = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const label = data.name || "Unknown";
+  const isRec = !["Unknown","Error","None","No object detected","Invalid image"].includes(label);
+
+  let thumb = "https://via.placeholder.com/80x60?text=?";
+  if (Array.isArray(data.images) && data.images.length && !data.images[0].includes("placeholder")) {
+    thumb = data.images[0];
+  } else if (blobOrURL instanceof Blob) {
+    thumb = URL.createObjectURL(blobOrURL);
+  } else if (typeof blobOrURL === "string" && blobOrURL.startsWith("data:")) {
+    thumb = blobOrURL;
+  }
+
+  const entry = { thumb, label, time };
+  if (isRec) { recHistory.unshift(entry);   if (recHistory.length   > 25) recHistory.pop(); }
+  else        { unrecHistory.unshift(entry); if (unrecHistory.length > 25) unrecHistory.pop(); }
+
+  if ($("historyPanel").style.display === "flex") refreshHistory();
+}
+
+function toggleHistory() {
+  const hp   = $("historyPanel");
+  const info = $("infoPanel");
+  const fp   = $("factsPanel");
+  const open = hp.style.display === "flex";
+  hp.style.display   = open ? "none" : "flex";
+  info.style.display = open ? "block" : "none";
+  fp.style.display   = open ? (lastResultText ? "block" : "none") : "none";
+  if (!open) refreshHistory();
+}
+
+function refreshHistory() {
+  _renderList("recList",   recHistory,   true);
+  _renderList("unrecList", unrecHistory, false);
+}
+
+function _renderList(id, list, isRec) {
+  const el = $(id);
+  if (!list.length) {
+    el.innerHTML = `<p class="empty-msg">${isRec ? "No detections yet" : "No failures yet"}</p>`;
+    return;
+  }
+  el.innerHTML = "";
+  list.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "hist-item";
+    div.innerHTML = `
+      <img src="${item.thumb}" alt="${item.label}" onerror="this.src='https://via.placeholder.com/80x60?text=?'">
+      <span class="badge">${isRec ? "✔" : "✕"}</span>
+      <div class="lbl">${item.label}</div>
+      <div class="ts">${item.time}</div>
+    `;
+    div.querySelector("img").addEventListener("click", ev => {
+      ev.stopPropagation();
+      openLightbox(item.thumb, `${item.label} — ${item.time}`);
+    });
+    el.appendChild(div);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Voice API
+// ════════════════════════════════════════════════════════════════════════════
+function callVoiceAPI(recognisedName) {
+  detecting = true;
+  setReady(false);
+  setSpinner(true);
+  detectBtn.innerText = "⏳ Looking up…";
+
+  const param = recognisedName
+    ? "?flower_name=" + encodeURIComponent(recognisedName)
+    : "";
+
+  if (recognisedName) {
+    voiceStatus.innerText = `🔍 Looking up "${recognisedName}"…`;
+    $("statusLine").innerText = `Searching: ${recognisedName}`;
+  } else {
+    voiceStatus.innerText = "🔍 Server listening on mic…";
+    $("statusLine").innerText = "Listening via server microphone…";
+  }
+  $("statusLine").style.color = "#888";
+
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 20000);
+
+  fetch(`${API}/voice-detect${param}`, { signal: ctrl.signal })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(data => {
+      clearTimeout(tid);
+      showResult(data);
+      voiceTranscript.className = "confirmed";
+      voiceTranscript.innerText = data.name || "Unknown";
+      voiceStatus.innerText     = "✔ Detection complete — press 🎤 to speak again";
+      _addHistory(data, null);
+    })
+    .catch(err => {
+      clearTimeout(tid);
+      if (err.name === "AbortError") {
+        toast("❌ Voice detect timed out — is the backend running?", 4000, true);
+      } else {
+        toast(`❌ Voice detect failed — ${err.message}`, 4000, true);
+      }
+      voiceStatus.innerText = "⚠ Error — try again";
+      $("statusLine").innerText = "Voice detection failed.";
+      $("statusLine").style.color = "#ff4d6d";
+    })
+    .finally(() => {
+      detecting = false;
+      detectBtn.innerText = "🔍 DETECT";
+      setSpinner(false);
+      if (mode === "voice") {
+        // Re-enable DETECT only if there's still a confirmed transcript
+        if (voiceTranscript.classList.contains("confirmed")) setReady(true);
+        // Clear confirmed state after 3s so old name can't be re-fired
+        setTimeout(() => {
+          if (voiceTranscript.classList.contains("confirmed")) {
+            voiceTranscript.className = "";
+            voiceTranscript.innerText = "Press 🎤 mic to speak again";
+            setReady(false);
+          }
+        }, 3000);
+      }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Browser TTS (voice assistant — speaks results aloud in browser)
+// ════════════════════════════════════════════════════════════════════════════
+let _ttsVoices = [];
+let _ttsMuted  = false;
+
+function toggleMute() {
+  _ttsMuted = !_ttsMuted;
+  const btn = $("muteBtn");
+  if (btn) btn.innerText = _ttsMuted ? "🔇 Voice Assistant: OFF" : "🔊 Voice Assistant: ON";
+  if (_ttsMuted && window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function _loadVoices() {
+  _ttsVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+}
+if (window.speechSynthesis) {
+  _loadVoices();
+  window.speechSynthesis.onvoiceschanged = _loadVoices;
+}
+
+function browserSpeak(text) {
+  if (!text || !window.speechSynthesis || _ttsMuted) return;
+  window.speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance(text);
+  utt.lang   = "en-IN";
+  utt.rate   = 0.93;
+  utt.pitch  = 1.0;
+  utt.volume = 1.0;
+
+  const voices = _ttsVoices.length ? _ttsVoices : window.speechSynthesis.getVoices();
+  const pick   = voices.find(v => v.lang === "en-IN")
+               || voices.find(v => v.lang.startsWith("en-") && v.name.toLowerCase().includes("female"))
+               || voices.find(v => v.lang.startsWith("en"))
+               || voices[0];
+  if (pick) utt.voice = pick;
+
+  // Chrome bug: long utterances get cut — chunk at sentence boundaries
+  if (text.length > 200) {
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    sentences.forEach(s => {
+      const u2 = new SpeechSynthesisUtterance(s.trim());
+      u2.lang = utt.lang; u2.rate = utt.rate;
+      if (utt.voice) u2.voice = utt.voice;
+      window.speechSynthesis.speak(u2);
+    });
+    return;
+  }
+  window.speechSynthesis.speak(utt);
+}
+
+// Trigger voice assistant after a detection result
+function speakResult(data) {
+  const name = data.name || "";
+  const info = data.info || "";
+  if (!name || ["Unknown","Error","None"].includes(name)) {
+    browserSpeak("Sorry, I could not identify the flower. Please try again.");
+    return;
+  }
+  const commonName   = name.includes("(") ? name.split("(")[0].trim() : name;
+  const firstSentence = info ? info.split(".")[0].trim() : "";
+  const speech = firstSentence
+    ? `${commonName}. ${firstSentence}.`
+    : `This flower is ${commonName}.`;
+  browserSpeak(speech);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Browser speech recognition  — ONE LISTEN PER BUTTON PRESS, no auto-detect
+// ════════════════════════════════════════════════════════════════════════════
+let _srListening = false;   // true only while mic is actually open
+
+function startVoice() {
+  if (isBusy("voice") || voiceActive) return;
+
+  setMode("voice");
+  voiceActive = true;
+
+  video.style.display         = "none";
+  uploadPreview.style.display = "none";
+  snapshotEl.style.display    = "none";
+  voiceUI.style.display       = "flex";
+  voiceTranscript.className   = "";
+  voiceTranscript.innerText   = "Press 🎙 MIC to speak, then press DETECT";
+  voiceStatus.innerText       = "Ready — press the mic button to speak";
+  micIcon.classList.remove("listening");
+  translateBtn.disabled       = true;
+  translationResult.innerText = "Detect a flower first, then translate.";
+  imageStrip.innerHTML        = "";
+
+  resetInfoPanel("🌸 Voice Mode",
+    "Step 1 — Press the 🎤 Mic button below and say a flower name.\nStep 2 — Press DETECT to identify it.",
+    "Waiting for mic input…");
+  // Keep DETECT disabled until a confirmed name is captured
+  setReady(false);
+}
+
+// Called when the mic circle button is clicked (not auto-called)
+function startListening() {
+  if (!voiceActive || _srListening || detecting) return;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast("⚠ Browser speech recognition not supported. Type a name manually and press DETECT.", 4000, true);
+    return;
+  }
+
+  _srListening = true;
+  micIcon.classList.add("listening");
+  voiceStatus.innerText     = "🎙 Listening — say a flower name…";
+  voiceTranscript.className = "";
+  voiceTranscript.innerText = "";
+
+  if (recognition) { try { recognition.abort(); } catch {} recognition = null; }
+
+  recognition = new SR();
+  recognition.continuous     = false;   // stop after first phrase — NO auto-loop
+  recognition.interimResults = true;
+  recognition.lang           = "en-IN";  // India English, works for most flower names
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    voiceStatus.innerText = "🎙 Listening — speak now…";
+  };
+
+  recognition.onresult = e => {
+    let interim = "", final_ = "";
+    for (let i = 0; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (final_ += t) : (interim += t);
+    }
+    if (interim) {
+      voiceTranscript.className = "";
+      voiceTranscript.innerText = interim;
+    }
+    if (final_) {
+      const cmd = final_.toLowerCase().trim();
+
+      // --- voice commands ---
+      if (["stop","quit","exit"].some(w => cmd.includes(w))) {
+        stopVoice(); return;
+      }
+
+      // Language switching commands
+      const LANG_MAP = {
+        hindi:"hi", telugu:"te", tamil:"ta", kannada:"kn", malayalam:"ml",
+        marathi:"mr", bengali:"bn", gujarati:"gu", punjabi:"pa",
+        french:"fr", german:"de", spanish:"es", arabic:"ar",
+        chinese:"zh", japanese:"ja", korean:"ko", portuguese:"pt", russian:"ru",
+      };
+      let switched = false;
+      for (const [word, code] of Object.entries(LANG_MAP)) {
+        if (cmd.includes(word)) {
+          langSelect.value = code;
+          lastResultText
+            ? translateResult()
+            : toast("Detect a flower first, then say a language to translate.", 3000);
+          switched = true;
+          break;
+        }
+      }
+
+      // --- flower name captured → show in transcript, enable DETECT ---
+      if (!switched) {
+        voiceTranscript.className = "confirmed";
+        voiceTranscript.innerText = final_.trim();
+        voiceStatus.innerText     = `✔ Heard: "${final_.trim()}" — now press DETECT`;
+        setReady(true);   // ← enable DETECT only now
+        browserSpeak(`Got it. You said ${final_.trim()}. Press detect to identify.`);
+      }
+    }
+  };
+
+  recognition.onerror = e => {
+    _srListening = false;
+    micIcon.classList.remove("listening");
+    if (e.error === "no-speech") {
+      voiceStatus.innerText = "⚠ No speech heard — try again";
+      toast("No speech detected. Press 🎙 and try again.", 2500);
+    } else if (e.error === "not-allowed") {
+      toast("❌ Microphone permission denied. Check browser settings.", 4000, true);
+      voiceActive = false;
+      setMode("idle");
+    } else if (e.error === "aborted") {
+      voiceStatus.innerText = "Listening cancelled";
+    } else {
+      voiceStatus.innerText = "⚠ Mic error: " + e.error;
+      toast("Mic error: " + e.error, 3000, true);
+    }
+  };
+
+  recognition.onend = () => {
+    _srListening = false;
+    micIcon.classList.remove("listening");
+    // Do NOT restart — user must press mic button again intentionally
+    if (voiceStatus.innerText.startsWith("🎙")) {
+      voiceStatus.innerText = "Press 🎙 mic to listen again";
+    }
+  };
+
+  try {
+    recognition.start();
+  } catch (err) {
+    _srListening = false;
+    micIcon.classList.remove("listening");
+    voiceStatus.innerText = "⚠ Could not start mic";
+    toast("Could not start microphone: " + err.message, 3000, true);
+  }
+}
+
+function stopVoice() {
+  if (!voiceActive && mode !== "voice") { toast("Voice is not active.", 2000); return; }
+  voiceActive  = false;
+  _srListening = false;
+  if (recognition) { try { recognition.abort(); } catch {} recognition = null; }
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  voiceUI.style.display = "none";
+  micIcon.classList.remove("listening");
+  setMode("idle");
+  setReady(false);
+  resetInfoPanel();
+}
+
+// Stop any active camera stream silently (called when switching modes)
+function _stopCamStream() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  video.style.display = "none";
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Translation
+// ════════════════════════════════════════════════════════════════════════════
+async function translateResult() {
+  const lang = langSelect.value;
+  if (!lang)           { toast("Please select a language first.", 2500); return; }
+  if (!lastResultText) { toast("No result to translate yet.", 2500); return; }
+
+  translateBtn.disabled       = true;
+  translationResult.innerText = "Translating…";
+
+  try {
+    const url  = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl="
+               + encodeURIComponent(lang) + "&dt=t&q=" + encodeURIComponent(lastResultText);
+    const data = await (await fetch(url)).json();
+    translationResult.innerText =
+      data[0].map(s => s[0]).join("") || "Translation unavailable.";
+  } catch {
+    translationResult.innerText = "⚠ Translation failed — check internet connection.";
+  } finally {
+    translateBtn.disabled = false;
+  }
+}
+
+langSelect.addEventListener("change", () => {
+  if (lastResultText && langSelect.value) translateResult();
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Upload
+// ════════════════════════════════════════════════════════════════════════════
+function triggerUpload() {
+  if (isBusy("upload")) return;
+  $("fileInput").click();
+}
+
+function handleUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (mode !== "idle" && mode !== "upload") {
+    toast(`⚠ ${MODE_LABELS[mode]} is active — stop it first.`, 2800, true);
+    e.target.value = ""; return;
+  }
+
+  setMode("upload");
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    uploadPreview.src           = ev.target.result;
+    uploadPreview.style.display = "block";
+    video.style.display         = "none";
+    snapshotEl.style.display    = "none";
+    voiceUI.style.display       = "none";
+    imageStrip.innerHTML        = "";
+    resetInfoPanel(file.name, "Photo uploaded — press DETECT to identify.", "Image ready");
+    setReady(true);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+}
+
+function deleteMedia() {
+  const hasUp   = uploadPreview.style.display !== "none" && uploadPreview.src;
+  const hasSnap = snapshotEl.style.display !== "none" && snapshotEl.src;
+  if (!hasUp && !hasSnap) { toast("Nothing to delete.", 2000); return; }
+
+  uploadPreview.src = ""; uploadPreview.style.display = "none";
+  snapshotEl.src    = ""; snapshotEl.style.display    = "none";
+  imageStrip.innerHTML = "";
+  $("factsPanel").style.display = "none";
+
+  if (mode === "upload") setMode("idle");
+  // In camera mode re-enable detect; in voice mode only re-enable if transcript confirmed
+  const voiceReady = mode === "voice" && voiceTranscript.classList.contains("confirmed");
+  setReady(mode === "camera" || voiceReady);
+  if (mode === "idle") resetInfoPanel();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Lightbox
+// ════════════════════════════════════════════════════════════════════════════
+function openLightbox(src, label) {
+  $("lightboxImg").src         = src;
+  $("lightboxLabel").innerText = label;
+  $("lightbox").style.display  = "flex";
+}
+function closeLightbox() {
+  $("lightbox").style.display = "none";
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Keyboard shortcuts
+// ════════════════════════════════════════════════════════════════════════════
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if ($("lightbox").style.display === "flex") { closeLightbox(); return; }
+    if (mode === "camera") { stopCamera(); return; }
+    if (mode === "voice")  { stopVoice();  return; }
+  }
+  // Enter = DETECT, but not while mic is actively open or a detection is running
+  if (e.key === "Enter" && !e.repeat && !detecting && !_srListening) capture();
+  // Space bar = open mic in voice mode
+  if (e.key === " " && !e.repeat && mode === "voice" && !_srListening && !detecting) {
+    e.preventDefault();
+    startListening();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Init + backend health check (retries every 5s until connected)
+// ════════════════════════════════════════════════════════════════════════════
+setMode("idle");
+
+let _backendOk = false;
+function checkBackend() {
+  fetch(`${API}/status`, { signal: AbortSignal.timeout(4000) })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === "running") {
+        _backendOk = true;
+        $("statusLine").innerText  = "✅ Backend connected — choose Camera, Voice, or Upload";
+        $("statusLine").style.color = "#00ffd0";
+        const w = [];
+        if (!d.plantnet_key_set) w.push("PlantNet key not set");
+        if (!d.unsplash_key_set) w.push("Unsplash key not set");
+        if (w.length) toast("⚠ " + w.join(" · "), 6000);
+      }
+    })
+    .catch(() => {
+      if (_backendOk) return;  // already connected, ignore transient errors
+      $("statusLine").innerHTML =
+        `❌ Backend offline — run: <code style="color:#00ffd0;font-size:11px;background:rgba(0,0,0,.4);padding:1px 5px;border-radius:4px;">uvicorn backend:app --host 0.0.0.0 --port 8000 --reload</code>`;
+      $("statusLine").style.color = "#ff4d6d";
+      // Retry every 5s until backend comes up
+      setTimeout(checkBackend, 5000);
+    });
+}
+checkBackend();
+</script>
+</body>
+</html>
