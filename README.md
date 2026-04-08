@@ -5,7 +5,7 @@ the flower's name, scientific classification, confidence score, Wikipedia inform
 The system is built on a **FastAPI** backend and a pure **HTML/CSS/JavaScript** frontend, communicating over a REST API. It features a fully integrated
 **voice assistant** that speaks detection results aloud using browser-native Text-to-Speech (TTS).
 
-# 🌸 Flower Classification System
+# 🌸 Flower Detection and Classification System
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
 ![YOLOv8](https://img.shields.io/badge/YOLOv8-00FFCD?style=flat&logo=yolo&logoColor=black)
