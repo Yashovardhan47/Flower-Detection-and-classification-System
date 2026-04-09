@@ -1,5 +1,5 @@
 # About the Project
-The **Flower Classification System** is a Final Year AI project that combines computer vision, botanical APIs, and natural language processing to identify
+The **Flower Classification System** is a AI project that combines computer vision, botanical APIs, and natural language processing to identify
 flowers in real time. Users can detect flowers through their **webcam**,**upload a photo**, or use **voice commands** — and the system responds with
 the flower's name, scientific classification, confidence score, Wikipedia information, and reference images.
 The system is built on a **FastAPI** backend and a pure **HTML/CSS/JavaScript** frontend, communicating over a REST API. It features a fully integrated
