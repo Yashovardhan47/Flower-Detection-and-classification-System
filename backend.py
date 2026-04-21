@@ -2,16 +2,7 @@
 backend.py
 ----------
 FastAPI backend — Flower Classification System v4.
-
-Start:  uvicorn backend:app --host 0.0.0.0 --port 8000 --reload
-
-What's fixed:
-  - /detect returns structured flower info (not raw Wikipedia dump)
-  - Builds a rich `info` string with botanical facts clearly labelled
-  - `info_structured` dict also returned for frontend to use by section
-  - Irrelevant Wikipedia content filtered via updated utils.get_info()
 """
-
 import asyncio
 import hashlib
 import os
