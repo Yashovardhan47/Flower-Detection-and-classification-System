@@ -1,8 +1,4 @@
-"""
-backend.py
-----------
-FastAPI backend — Flower Classification System v4.
-"""
+#FastAPI backend — Flower Classification System v4.
 import asyncio
 import hashlib
 import os
@@ -20,10 +16,8 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
-
 UNSPLASH_KEY = os.getenv("UNSPLASH_KEY", "")
-
-# ── YOLO ──────────────────────────────────────────────────────────────────────
+# ── YOLO 
 try:
     from ultralytics import YOLO
     _model = YOLO("yolov8n.pt")
@@ -31,14 +25,11 @@ try:
 except Exception as _exc:
     print(f"⚠️  YOLO not loaded: {_exc}")
     _model = None
-
 from audio_detect import process_audio_flower          # noqa: E402
 from utils import get_info, identify_plant             # noqa: E402
 from voice_assistant import speak_async, get_flower_images  # noqa: E402
-
 _pool = ThreadPoolExecutor(max_workers=6)
-
-# ── App ───────────────────────────────────────────────────────────────────────
+# ── App 
 app = FastAPI(title="Flower Classification System", version="4.0.0")
 app.add_middleware(
     CORSMiddleware,
@@ -46,23 +37,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Config 
 API_DELAY   = 2
 MAX_HISTORY = 25
-
-# ── State ─────────────────────────────────────────────────────────────────────
+# ── State 
 _last_result   = {"name": "Waiting", "confidence": 0, "info": "No detection yet.", "images": []}
 _last_api_call = 0.0
 _last_img_hash = ""
 recognized_history   = []
 unrecognized_history = []
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers 
 def _placeholder(label="flower"):
     return [f"https://via.placeholder.com/400x300?text={label.replace(' ', '+')}"]
-
 
 def _fetch_images(query, n=3):
     if not UNSPLASH_KEY:
@@ -83,13 +69,11 @@ def _fetch_images(query, n=3):
         print(f"⚠️  Unsplash: {exc}")
     return _placeholder(search)
 
-
 def _push(lst, item):
     lst.insert(0, item)
     if len(lst) > MAX_HISTORY:
         lst.pop()
-
-
+        
 def _build_flower_info(name: str, raw_info: str, confidence: float) -> dict:
     """
     Build a structured info dict from the raw Wikipedia extract.
@@ -110,7 +94,7 @@ def _build_flower_info(name: str, raw_info: str, confidence: float) -> dict:
             }
         }
 
-    # ── Split info into sentences and group by topic ──────────────────────────
+    # ── Split info into sentences and group by topic 
     sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', raw_info) if s.strip()]
 
     # First 2 sentences → Overview
@@ -138,15 +122,11 @@ def _build_flower_info(name: str, raw_info: str, confidence: float) -> dict:
 
     # Clean full info string — this is what gets displayed in the details box
     clean_info = raw_info  # already filtered by utils.get_info()
-
     return {
         "info": clean_info,
         "info_sections": sections,
     }
-
-
-# ── Routes ────────────────────────────────────────────────────────────────────
-
+# ── Routes
 @app.get("/")
 def root():
     return {"message": "🌸 Flower Classification System", "version": "4.0.0"}
@@ -160,8 +140,7 @@ def status():
         "plantnet_key_set": bool(os.getenv("PLANTNET_API_KEY")),
         "unsplash_key_set": bool(UNSPLASH_KEY),
     }
-
-
+    
 @app.post("/detect")
 async def detect(file: UploadFile = File(...)):
     global _last_api_call, _last_result, _last_img_hash
@@ -183,7 +162,6 @@ async def detect(file: UploadFile = File(...)):
             }
 
         loop = asyncio.get_event_loop()
-
         # YOLO annotation (visual only — not used as gate)
         if _model is not None:
             try:
@@ -304,11 +282,9 @@ async def voice_detect(flower_name: Optional[str] = Query(default=None)):
             "confidence":    0,
         }
 
-
 @app.get("/history")
 def get_history():
     return {"recognized": recognized_history, "unrecognized": unrecognized_history}
-
 
 @app.delete("/clear-history")
 def clear_history():
