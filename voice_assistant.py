@@ -5,19 +5,16 @@ import requests
 import speech_recognition as sr
 
 from utils import get_info   # used by process_voice_flower
-
-# ── Speech recogniser (stateless — safe to share) ────────────────────────────
+# ── Speech recogniser (stateless — safe to share) 
 recognizer = sr.Recognizer()
 recognizer.energy_threshold         = 200   # pick up quiet speech
 recognizer.dynamic_energy_threshold = True
 recognizer.pause_threshold          = 0.9   # seconds of silence → end of phrase
 recognizer.non_speaking_duration    = 0.5
-
-# ── TTS singleton ─────────────────────────────────────────────────────────────
+# ── TTS singleton 
 _engine      = None
 _engine_lock = threading.Lock()
 _tts_ok      = True   # permanently False after first init failure
-
 
 def _get_engine():
     global _engine, _tts_ok
@@ -44,11 +41,7 @@ def _get_engine():
             return None
     return _engine
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
 def speak(text: str) -> None:
     """
     Speak *text* aloud via pyttsx3. Thread-safe. Never raises. Always prints.
@@ -76,7 +69,6 @@ def speak(text: str) -> None:
         except Exception as exc:
             print(f"⚠️  TTS non-fatal: {exc}")
 
-
 def speak_async(text: str) -> None:
     """
     Fire-and-forget version of speak(). Runs in a daemon thread.
@@ -84,7 +76,6 @@ def speak_async(text: str) -> None:
     """
     t = threading.Thread(target=speak, args=(text,), daemon=True)
     t.start()
-
 
 def listen_command(timeout: int = 10, phrase_limit: int = 8) -> str:
     """
@@ -185,7 +176,6 @@ def get_flower_images(query: str, n: int = 3) -> list:
         print(f"❌ get_flower_images: {exc}")
 
     return [f"https://via.placeholder.com/400x300?text={search_query.replace(' ', '+')}"]
-
 
 def process_voice_flower() -> dict:
     """
