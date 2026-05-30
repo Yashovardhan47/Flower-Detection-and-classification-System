@@ -1,9 +1,3 @@
-"""
-utils.py
---------
-identify_plant()  – PlantNet v2  → (name, confidence)
-get_info()        – Wikipedia    → flower-specific structured info string
-"""
 import os
 import re
 import requests
@@ -14,8 +8,7 @@ load_dotenv()
 
 PLANTNET_API_KEY = os.getenv("PLANTNET_API_KEY", "")
 _HEADERS = {"User-Agent": "FlowerClassificationApp/4.0 (academic-project)"}
-
-# ── Keywords that confirm a Wikipedia page is about a plant ──────────────────
+# ── Keywords that confirm a Wikipedia page is about a plant 
 _PLANT_CATEGORIES = {
     "plant", "flower", "flora", "botany", "botanical", "genus", "species",
     "family", "angiosperm", "gymnosperm", "shrub", "tree", "herb", "vine",
@@ -23,8 +16,7 @@ _PLANT_CATEGORIES = {
     "rosaceae", "asteraceae", "liliaceae", "orchidaceae", "fabaceae",
     "solanaceae", "ranunculaceae", "apiaceae", "lamiaceae", "poaceae",
 }
-
-# ── Sentence keywords that indicate botanical/flower content ──────────────────
+# ── Sentence keywords that indicate botanical/flower content 
 _BOTANICAL_KEYWORDS = [
     "flower", "plant", "bloom", "petal", "leaf", "leaves", "stem", "root",
     "genus", "species", "family", "native", "grows", "garden", "ornamental",
@@ -38,8 +30,7 @@ _BOTANICAL_KEYWORDS = [
     "edible", "toxic", "poisonous", "fragrance", "scent", "pollen",
     "national flower", "state flower", "symbol",
 ]
-
-# ── Sentences to EXCLUDE (irrelevant to a flower project) ─────────────────────
+# ── Sentences to EXCLUDE (irrelevant to a flower project) 
 _IRRELEVANT_PATTERNS = [
     r"\b(singer|musician|actor|actress|film|movie|album|song|band|artist)\b",
     r"\b(politician|president|minister|senator|governor)\b",
@@ -52,12 +43,7 @@ _IRRELEVANT_PATTERNS = [
     r"\bother uses\b",
 ]
 _IRRELEVANT_RE = re.compile("|".join(_IRRELEVANT_PATTERNS), re.IGNORECASE)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # PlantNet identification
-# ─────────────────────────────────────────────────────────────────────────────
-
 def identify_plant(image_bytes: bytes) -> tuple:
     """
     Identify a flower from JPEG/PNG bytes via PlantNet v2.
@@ -113,12 +99,8 @@ def _parse_plantnet(data: dict) -> tuple:
     display = f"{common} ({sci})" if common.lower() != sci.lower() else sci
     print(f"✅ PlantNet → {display!r} [{score:.2%}]")
     return display, score
-
-
-# ─────────────────────────────────────────────────────────────────────────────
+    
 # Wikipedia flower-specific info
-# ─────────────────────────────────────────────────────────────────────────────
-
 def get_info(name: str) -> str:
     """
     Return clean, flower-specific information for a detected plant name.
@@ -138,7 +120,7 @@ def get_info(name: str) -> str:
         common_part = name[: name.index("(")].strip()
         sci_part    = name[name.index("(") + 1 : name.rindex(")")].strip()
 
-    # ── Try scientific name FIRST (most specific, avoids disambiguation) ─────
+    # ── Try scientific name FIRST (most specific, avoids disambiguation)
     candidates = []
     if sci_part:
         candidates.append(sci_part)
@@ -154,7 +136,7 @@ def get_info(name: str) -> str:
                 print(f"✅ Info ready for '{query}' ({len(cleaned)} chars)")
                 return cleaned
 
-    # ── Opensearch fallback ───────────────────────────────────────────────────
+    # ── Opensearch fallback 
     for query in [sci_part or common_part, common_part]:
         raw = _wiki_search_then_fetch(query)
         if raw:
@@ -201,7 +183,7 @@ def _wiki_fetch(query: str) -> str:
         if "may refer to" in extract[:150] or "disambiguation" in extract[:150].lower():
             return ""
 
-        # ── PLANT PAGE VERIFICATION ──────────────────────────────────────────
+        # ── PLANT PAGE VERIFICATION 
         # Check the description field (Wikipedia REST API includes it)
         description = payload.get("description", "").lower()
         is_plant = _is_plant_content(extract + " " + description + " " + title)
