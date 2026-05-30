@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()   # MUST be before utils imports so PLANTNET_API_KEY is available
 
 from utils import get_info, identify_plant   # noqa: E402
-
-# ── YOLO ──────────────────────────────────────────────────────────────────────
+# ── YOLO 
 try:
     from ultralytics import YOLO
     model = YOLO("yolov8n.pt")
@@ -17,8 +16,7 @@ try:
 except Exception as exc:
     print(f"⚠️  YOLO load failed ({exc}) — running without bounding-box annotation")
     model = None   # graceful fallback — PlantNet still works
-
-# ── Camera — try indices 0,1,2 until one opens ───────────────────────────────
+# ── Camera — try indices 0,1,2 until one opens 
 cap = None
 for _cam_idx in range(3):
     _c = cv2.VideoCapture(_cam_idx)
@@ -39,12 +37,10 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 print("✅ Flower Classification System — LIVE")
 print("   Press  Q  or  ESC  to quit\n")
-
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Config 
 API_DELAY   = 5          # seconds between PlantNet calls
 PANEL_W     = 440        # info panel width in pixels
 FONT        = cv2.FONT_HERSHEY_SIMPLEX
-
 # Colour palette (BGR)
 CLR_BG      = (20, 22, 28)
 CLR_TITLE   = (220, 255, 0)
@@ -54,17 +50,13 @@ CLR_TEXT    = (210, 210, 210)
 CLR_FOOTER  = (200, 100, 100)
 CLR_DIVIDER = (55, 55, 65)
 CLR_CONF    = (0, 220, 180)
-
-# ── State ─────────────────────────────────────────────────────────────────────
+# ── State
 last_name      = "Detecting…"
 last_info      = "Waiting for first identification."
 last_conf      = 0.0
 last_api_call  = 0.0
 frame_count    = 0
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
+# ── Helpers 
 def wrap_text(text: str, max_chars: int = 52) -> list:
     words  = text.split()
     lines, cur = [], ""
@@ -90,14 +82,14 @@ def draw_panel(canvas: np.ndarray, cam_w: int, cam_h: int) -> None:
     # Subtle gradient strip at left edge of panel
     cv2.rectangle(canvas, (x0, 0), (x0 + 3, cam_h), CLR_CONF, -1)
 
-    # ── Title block ──────────────────────────────────────────────────────────
+    # ── Title block
     cv2.putText(canvas, "FLOWER CLASSIFICATION",
                 (x0 + 14, 28), FONT, 0.52, CLR_TITLE, 1, cv2.LINE_AA)
     cv2.putText(canvas, "YOLO  +  PlantNet  +  Wikipedia",
                 (x0 + 14, 48), FONT, 0.36, CLR_META, 1, cv2.LINE_AA)
     cv2.line(canvas, (x0 + 12, 58), (x0 + PANEL_W - 12, 58), CLR_DIVIDER, 1)
 
-    # ── Flower name ──────────────────────────────────────────────────────────
+    # ── Flower name 
     display = last_name if len(last_name) <= 40 else last_name[:38] + "…"
     cv2.putText(canvas, display,
                 (x0 + 14, 88), FONT, 0.62, CLR_NAME, 2, cv2.LINE_AA)
@@ -112,7 +104,7 @@ def draw_panel(canvas: np.ndarray, cam_w: int, cam_h: int) -> None:
                 (x0 + 14, 128), FONT, 0.34, CLR_META, 1, cv2.LINE_AA)
     cv2.line(canvas, (x0 + 12, 138), (x0 + PANEL_W - 12, 138), CLR_DIVIDER, 1)
 
-    # ── Info text ────────────────────────────────────────────────────────────
+    # ── Info text 
     lines = wrap_text(last_info, max_chars=52)
     y = 156
     for line in lines:
@@ -124,13 +116,13 @@ def draw_panel(canvas: np.ndarray, cam_w: int, cam_h: int) -> None:
                     (x0 + 14, y), FONT, 0.36, CLR_TEXT, 1, cv2.LINE_AA)
         y += 19
 
-    # ── Footer ───────────────────────────────────────────────────────────────
+    # ── Footer 
     cv2.line(canvas, (x0 + 12, cam_h - 26), (x0 + PANEL_W - 12, cam_h - 26), CLR_DIVIDER, 1)
     cv2.putText(canvas, "Press Q or ESC to quit",
                 (x0 + 14, cam_h - 10), FONT, 0.38, CLR_FOOTER, 1, cv2.LINE_AA)
 
 
-# ── Main loop ─────────────────────────────────────────────────────────────────
+# ── Main loop 
 _fps_time = time.time()
 _fps_val  = 0.0
 
@@ -196,7 +188,7 @@ while True:
         print("🛑 Stopped by user")
         break
 
-# ── Cleanup ───────────────────────────────────────────────────────────────────
+# ── Cleanup 
 cap.release()
 cv2.destroyAllWindows()
 print("✅ Closed cleanly.")
